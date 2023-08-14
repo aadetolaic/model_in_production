@@ -1,0 +1,24 @@
+apiVersion: apps/v1 
+kind: Deployment
+metadata:
+  name: object_detection_inf_deploy 
+  labels:
+    app: obj_detection_inf 
+spec: 
+  replicas: 1
+  selector:
+    matchLabels:
+      app: obj_detection_inf
+  template:
+    metadata:
+      name: object_detection_inf_pod
+      labels:
+        app: obj_detection_inf
+    spec:
+      containers:
+        - name: object_detection_inf_container 
+          image: aadetola/model_api_image:latest
+          ports:
+            - containerPort: 8000
+          imagePullPolicy: Always
+          
