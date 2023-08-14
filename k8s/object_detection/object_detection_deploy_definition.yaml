@@ -1,22 +1,22 @@
 apiVersion: apps/v1 
 kind: Deployment
 metadata:
-  name: object_detection_inf_deploy 
+  name: object-detection-inf_deploy 
   labels:
-    app: obj_detection_inf 
+    app: obj-detection-inf 
 spec: 
   replicas: 1
   selector:
     matchLabels:
-      app: obj_detection_inf
+      app: obj-detection-inf
   template:
     metadata:
-      name: object_detection_inf_pod
+      name: object-detection-inf-pod
       labels:
-        app: obj_detection_inf
+        app: obj-detection-inf
     spec:
       containers:
-        - name: object_detection_inf_container 
+        - name: object-detection-inf-container 
           image: aadetola/model_api_image:latest
           ports:
             - containerPort: 8000
