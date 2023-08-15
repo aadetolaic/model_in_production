@@ -54,11 +54,9 @@ RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
 RUN pip3 install opencv-python
 RUN pip3 install Pillow
 
-#RUN pip3 install climage 
-#RUN pip3 install cvlib
-#RUN pip3 install python-multipart 
-#RUN mkdir images/
-#RUN mkdir images_uploaded/
+RUN pip3 install climage 
+RUN pip3 install cvlib
+RUN pip3 install python-multipart 
 COPY model_main.py .
 EXPOSE 8000  
 #execute command 
