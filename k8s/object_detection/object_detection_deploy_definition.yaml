@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: object-detection-inf-container 
-          image: aadetola/model_api_image:latest
+          image: aadetola/model_api_image_v2:latest
           # shell -c evaluates a string as shell input
           #command: [ "sh", "-c"]
           #loop forever, outputting "yo" every 5 seconds
@@ -25,5 +25,5 @@ spec:
           ports:
             - containerPort: 8000
           imagePullPolicy: Always
-
+          
           #kubectl exec -it pod/name_of_pod -- sh
