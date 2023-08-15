@@ -1,7 +1,7 @@
 apiVersion: apps/v1 
 kind: Deployment
 metadata:
-  name: object-detection-inf_deploy 
+  name: object-detection-inf-deploy 
   labels:
     app: obj-detection-inf 
 spec: 
