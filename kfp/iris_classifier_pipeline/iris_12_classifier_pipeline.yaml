@@ -1,0 +1,390 @@
+# PIPELINE DEFINITION
+# Name: iris-classifer-csv-and-model-passing
+# Description: a pipeline for iris classifer
+# Inputs:
+#    csv_url: str
+#    target_column: str
+components:
+  comp-get-metrics:
+    executorLabel: exec-get-metrics
+    inputDefinitions:
+      artifacts:
+        test_csv:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        trained_model:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        y_predict_csv:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+      parameters:
+        target_column:
+          parameterType: STRING
+  comp-predict-on-test-data:
+    executorLabel: exec-predict-on-test-data
+    inputDefinitions:
+      artifacts:
+        test_csv:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        trained_model:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+      parameters:
+        target_column:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        y_predict_csv:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-prepare-dataset:
+    executorLabel: exec-prepare-dataset
+    inputDefinitions:
+      parameters:
+        csv_url:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        output_csv:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-train-test-split:
+    executorLabel: exec-train-test-split
+    inputDefinitions:
+      artifacts:
+        input_iris_csv:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+    outputDefinitions:
+      artifacts:
+        test_csv:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+        train_csv:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+  comp-training-basic-classifier:
+    executorLabel: exec-training-basic-classifier
+    inputDefinitions:
+      artifacts:
+        train_csv:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+      parameters:
+        target_column:
+          parameterType: STRING
+    outputDefinitions:
+      artifacts:
+        trained_model:
+          artifactType:
+            schemaTitle: system.Artifact
+            schemaVersion: 0.0.1
+deploymentSpec:
+  executors:
+    exec-get-metrics:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - get_metrics
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet     --no-warn-script-location 'pandas==1.2.4'\
+          \ 'numpy==1.21.0' 'scikit-learn==0.24.2' 'fsspec' 'kfp==2.0.1' && \"$0\"\
+          \ \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          python3 -m kfp.components.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef get_metrics(trained_model: InputPath(),test_csv: InputPath(),\
+          \ y_predict_csv: InputPath(), target_column: str,)-> None: \n\n    print(\"\
+          In get metrics \")\n\n    import pandas as pd \n    import numpy as np\n\
+          \    import pickle \n    from sklearn.metrics import accuracy_score, precision_score,recall_score,\
+          \ log_loss\n    from sklearn import metrics \n\n    with open(test_csv)\
+          \ as f: \n        test_df = pd.read_csv(f)\n\n    with open(trained_model,\
+          \ \"rb\") as f: \n        logistic_reg_model = pickle.load(f)\n\n    with\
+          \ open(y_predict_csv) as f: \n        y_predict_df = pd.read_csv(f)\n\n\
+          \    y_predict = y_predict_df.to_numpy()\n    target_column = target_column\n\
+          \n    y_test = test_df[target_column]\n\n    acc = accuracy_score(y_predict,\
+          \ y_test) \n    precision = precision_score(y_predict, y_test, average=\"\
+          micro\")\n    recall = recall_score(y_predict, y_test, average=\"micro\"\
+          )\n\n    print(metrics.classification_report(y_test, y_predict))\n\n\n \
+          \   print(\"Model metrics: \", {\"accuracy\" : round(acc, 2), \"precision\"\
+          : round(precision,2), \"recall\": round(recall,2)})\n\n"
+        image: python:3.7
+    exec-predict-on-test-data:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - predict_on_test_data
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet     --no-warn-script-location 'pandas==1.2.4'\
+          \ 'numpy==1.21.0' 'scikit-learn==0.24.2' 'fsspec' 'kfp==2.0.1' && \"$0\"\
+          \ \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          python3 -m kfp.components.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef predict_on_test_data(trained_model: InputPath(),test_csv: InputPath(),\
+          \ y_predict_csv: OutputPath(), target_column: str,)-> None:\n    print(\"\
+          In predict on test data\")\n\n    import pandas as pd \n    import numpy\
+          \ as np\n    import pickle \n\n    with open(test_csv) as f: \n        test_df\
+          \ = pd.read_csv(f)\n\n    with open(trained_model, \"rb\") as f: \n    \
+          \    logistic_reg_model = pickle.load(f)\n\n    #here we split the test\
+          \ data into features and labels \n    target_column = target_column\n\n\
+          \    y_test = test_df[target_column]\n    X_test = test_df.drop(target_column,\
+          \ axis=1)\n\n    y_predict = logistic_reg_model.predict(X_test) \n    y_predict_df\
+          \ = pd.DataFrame(y_predict)\n    print(y_predict_df.head(4))\n\n    with\
+          \ open(y_predict_csv, \"w\") as f:\n        y_predict_df.to_csv(f, index=False)\n\
+          \n"
+        image: python:3.7
+    exec-prepare-dataset:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - prepare_dataset
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet     --no-warn-script-location 'pandas==1.2.4'\
+          \ 'numpy==1.21.0' 'fsspec' 'kfp==2.0.1' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          python3 -m kfp.components.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef prepare_dataset(output_csv:OutputPath(), csv_url: str,) -> None:\n\
+          \n    print(\"In prepare data component\")\n    import pandas as pd\n  \
+          \  import logging \n\n    #csv_url is the path to the csv file. the path\
+          \ to the csv file can be located in the s3 bucket. \n    #so you can read\
+          \ the csv file directly from the bucket. \n    df = pd.read_csv(csv_url)\n\
+          \    # data cleaning code goes here \n    # and feature engineering code\
+          \ goes here \n\n    print(df.head())\n\n    with open(output_csv, 'w') as\
+          \ f: \n        df.to_csv(f, index=False)\n\n"
+        image: python:3.7
+    exec-train-test-split:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - train_test_split
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet     --no-warn-script-location 'pandas==1.2.4'\
+          \ 'numpy==1.21.0' 'scikit-learn==0.24.2' 'fsspec' 'kfp==2.0.1' && \"$0\"\
+          \ \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          python3 -m kfp.components.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef train_test_split(input_iris_csv: InputPath(), train_csv: OutputPath(),\
+          \ test_csv: OutputPath(),)-> None :\n    print(\"In train_test_split component\"\
+          )\n    import pandas as pd \n    import numpy as np\n    from sklearn.model_selection\
+          \ import train_test_split \n\n    with open(input_iris_csv) as f:\n    \
+          \    df = pd.read_csv(f)\n\n    train_df, test_df = train_test_split(df,\
+          \ test_size=0.2, random_state=47, stratify=df['class'])\n\n    print(f\"\
+          train_df: {train_df}\")\n    print(f\"test_df: {test_df}\")\n\n    with\
+          \ open(train_csv, 'w') as f: \n        train_df.to_csv(f,index=False)\n\n\
+          \    with open(test_csv, 'w') as f: \n        test_df.to_csv(f,index=False)\n\
+          \n"
+        image: python:3.7
+    exec-training-basic-classifier:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - training_basic_classifier
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet     --no-warn-script-location 'pandas==1.2.4'\
+          \ 'numpy==1.21.0' 'scikit-learn==0.24.2' 'fsspec' 'kfp==2.0.1' && \"$0\"\
+          \ \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          python3 -m kfp.components.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef training_basic_classifier(train_csv:InputPath(), trained_model:OutputPath(),\
+          \ target_column:str, )-> None: \n    print(\"In training basic classifier\"\
+          )\n\n    import pandas as pd \n    import numpy as np \n    import pickle\
+          \ \n    from sklearn.linear_model import LogisticRegression\n\n    with\
+          \ open(train_csv) as f: \n        train_df = pd.read_csv(f)\n\n    #here\
+          \ we split the train data into features and label\n    target_column = target_column\n\
+          \    y_train = train_df[target_column]\n    X_train = train_df.drop(target_column,\
+          \ axis=1)\n\n    #here we train the model \n    classifier = LogisticRegression(max_iter=500)\n\
+          \    classifier.fit(X_train, y_train)\n\n    with open(trained_model, \"\
+          wb\") as f: \n        pickle.dump(classifier, f)\n\n    print(\"logistic\
+          \ regression model is trained on iris.csv \")\n\n"
+        image: python:3.7
+pipelineInfo:
+  description: a pipeline for iris classifer
+  name: iris-classifer-csv-and-model-passing
+root:
+  dag:
+    tasks:
+      get-metrics:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-get-metrics
+        dependentTasks:
+        - predict-on-test-data
+        - train-test-split
+        - training-basic-classifier
+        inputs:
+          artifacts:
+            test_csv:
+              taskOutputArtifact:
+                outputArtifactKey: test_csv
+                producerTask: train-test-split
+            trained_model:
+              taskOutputArtifact:
+                outputArtifactKey: trained_model
+                producerTask: training-basic-classifier
+            y_predict_csv:
+              taskOutputArtifact:
+                outputArtifactKey: y_predict_csv
+                producerTask: predict-on-test-data
+          parameters:
+            target_column:
+              componentInputParameter: target_column
+        taskInfo:
+          name: get-metrics
+      predict-on-test-data:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-predict-on-test-data
+        dependentTasks:
+        - train-test-split
+        - training-basic-classifier
+        inputs:
+          artifacts:
+            test_csv:
+              taskOutputArtifact:
+                outputArtifactKey: test_csv
+                producerTask: train-test-split
+            trained_model:
+              taskOutputArtifact:
+                outputArtifactKey: trained_model
+                producerTask: training-basic-classifier
+          parameters:
+            target_column:
+              componentInputParameter: target_column
+        taskInfo:
+          name: predict-on-test-data
+      prepare-dataset:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-prepare-dataset
+        inputs:
+          parameters:
+            csv_url:
+              componentInputParameter: csv_url
+        taskInfo:
+          name: prepare-dataset
+      train-test-split:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-train-test-split
+        dependentTasks:
+        - prepare-dataset
+        inputs:
+          artifacts:
+            input_iris_csv:
+              taskOutputArtifact:
+                outputArtifactKey: output_csv
+                producerTask: prepare-dataset
+        taskInfo:
+          name: train-test-split
+      training-basic-classifier:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-training-basic-classifier
+        dependentTasks:
+        - train-test-split
+        inputs:
+          artifacts:
+            train_csv:
+              taskOutputArtifact:
+                outputArtifactKey: train_csv
+                producerTask: train-test-split
+          parameters:
+            target_column:
+              componentInputParameter: target_column
+        taskInfo:
+          name: training-basic-classifier
+  inputDefinitions:
+    parameters:
+      csv_url:
+        parameterType: STRING
+      target_column:
+        parameterType: STRING
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.0.1
