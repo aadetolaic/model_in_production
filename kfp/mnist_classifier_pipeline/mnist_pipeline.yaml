@@ -1,0 +1,74 @@
+# PIPELINE DEFINITION
+# Name: mnist-pipeline
+# Description: mnist pipeline
+components:
+  comp-custom-download-data-train-model:
+    executorLabel: exec-custom-download-data-train-model
+defaultPipelineRoot: gs://my-ml-gke-project-unique-bucket/mnist_pipeline
+deploymentSpec:
+  executors:
+    exec-custom-download-data-train-model:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - custom_download_data_train_model
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet     --no-warn-script-location 'torch' 'torchvision'\
+          \ 'kfp==2.0.1' && \"$0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          python3 -m kfp.components.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef custom_download_data_train_model():\n    import torch \n    #from\
+          \ PIL import Image\n    from torch import nn, save #load\n    from torch.optim\
+          \ import Adam\n    from torch.utils.data import DataLoader\n    from torchvision\
+          \ import datasets\n    from torchvision.transforms import ToTensor\n\n \
+          \   PIPELINE_ROOT = f\"{BUCKET_URI}/mnist_pipeline\" \n\n    # Get data\
+          \ \n    train = datasets.MNIST(root=\"data\", download=True, train=True,\
+          \ transform=ToTensor())\n    dataset = DataLoader(train, 32)\n    #1,28,28\
+          \ - classes 0-9\n\n    # Image Classifier Neural Network\n    class ImageClassifier(nn.Module):\
+          \ \n        def __init__(self):\n            super().__init__()\n      \
+          \      self.model = nn.Sequential(\n                nn.Conv2d(1, 32, (3,3)),\
+          \ \n                nn.ReLU(),\n                nn.Conv2d(32, 64, (3,3)),\
+          \ \n                nn.ReLU(),\n                nn.Conv2d(64, 64, (3,3)),\
+          \ \n                nn.ReLU(),\n                nn.Flatten(), \n       \
+          \         nn.Linear(64*(28-6)*(28-6), 10)  \n            )\n\n        def\
+          \ forward(self, x): \n            return self.model(x)\n\n    # Instance\
+          \ of the neural network, loss, optimizer \n    clf = ImageClassifier().to('cpu')\n\
+          \    opt = Adam(clf.parameters(), lr=1e-3)\n    loss_fn = nn.CrossEntropyLoss()\
+          \ \n\n\n    # Training flow \n    for epoch in range(10): # train for 10\
+          \ epochs\n            for batch in dataset: \n                X,y = batch\
+          \ \n                X, y = X.to('cpu'), y.to('cpu') \n                yhat\
+          \ = clf(X) \n                loss = loss_fn(yhat, y) \n\n              \
+          \  # Apply backprop \n                opt.zero_grad()\n                loss.backward()\
+          \ \n                opt.step() \n\n            print(f\"Epoch:{epoch} loss\
+          \ is {loss.item()}\")\n\n    #save the model to a file.\n    with open('model_state.pt',\
+          \ 'wb') as f: \n        save(clf.state_dict(), f)\n\n"
+        image: python:3.7
+pipelineInfo:
+  description: mnist pipeline
+  name: mnist-pipeline
+root:
+  dag:
+    tasks:
+      custom-download-data-train-model:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-custom-download-data-train-model
+        taskInfo:
+          name: custom-download-data-train-model
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.0.1
