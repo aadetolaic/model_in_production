@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: object-detection-inf-deploy 
   labels:
-    app: obj-detection-inf 
+    app: obj-detection 
 spec: 
   replicas: 1
   selector:
@@ -25,5 +25,12 @@ spec:
           ports:
             - containerPort: 8000
           imagePullPolicy: Always
+          volumeMounts:
+            - mountPath: /data  
+              name: obj-volume 
+      volumes:
+        - name: obj-volume
+          persistentVolumeClaim:  # make sure you create the claime before creating the deployment 
+            claimName: pvc-demo 
           
           #kubectl exec -it pod/name_of_pod -- sh
