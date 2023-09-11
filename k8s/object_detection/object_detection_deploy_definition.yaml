@@ -25,6 +25,14 @@ spec:
           ports:
             - containerPort: 8000
           imagePullPolicy: Always
+          readinessProbe: 
+            httpGet: # to test when the api in the container is running 
+              path: /api/ready 
+              port: 8000
+          livenessProbe:
+            httpGet:
+              path: /live 
+              port: 8000
           volumeMounts:
             - mountPath: /data  
               name: obj-volume 
@@ -34,3 +42,4 @@ spec:
             claimName: pvc-demo 
           
           #kubectl exec -it pod/name_of_pod -- sh
+          #kubectl logs -f <name of pod> <name of container>
